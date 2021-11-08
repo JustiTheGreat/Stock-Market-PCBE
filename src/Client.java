@@ -1,9 +1,4 @@
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.WindowEvent;
-import java.util.concurrent.TimeoutException;
-
-public class Client {
+public class Client extends Thread{
     public volatile boolean isRunning = true;
     private Thread thread;
 
@@ -19,11 +14,14 @@ public class Client {
         isRunning = false;
     }
 
-    @Override
+
     public void run() {
         System.out.println("Client with name " + this.getName() + " started succesfully!");
-        while (isRunning) {};
+        while (isRunning) {}
         System.out.println("Client with name " + this.getName() + " stopped succesfully!");
 
     }
+
+
+
 }
