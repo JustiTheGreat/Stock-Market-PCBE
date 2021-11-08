@@ -2,7 +2,7 @@ import java.util.ArrayList;
 import java.util.Scanner;
 
 public class Dispatcher extends Thread {
-    private static final Server server = new Server();
+    private static final Server server = new Server("Server burse");
     private static final ArrayList<Client> clients = new ArrayList<>();
 
     @Override
