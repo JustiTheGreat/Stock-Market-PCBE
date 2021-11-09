@@ -5,6 +5,10 @@ public class Server extends Thread{
         super(name);
     }
 
+    public void closeThread() {
+        isRunning = false;
+    }
+
     @Override
     public void run() {
         System.out.println("Server started successfully!");
