@@ -1,14 +1,10 @@
-public class Stock {
+public class Stock implements EventsAndConstants {
     private int type;
     private long ID;
     private String actionName;
     private int actionNumber;
     private int pricePerAction;
     private Client client;
-    public int OFFER = 0;
-    public int BID = 1;
-    public int EDIT = 2;
-    public int DELETE = 3;
 
 
     public Stock(int type, String actionName, int actionNumber, int pricePerAction, Client client) {
