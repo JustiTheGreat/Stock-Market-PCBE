@@ -14,14 +14,9 @@ public class Client extends Thread{
         isRunning = false;
     }
 
-
     public void run() {
         System.out.println("Client with name " + this.getName() + " started succesfully!");
         while (isRunning) {}
         System.out.println("Client with name " + this.getName() + " stopped succesfully!");
-
     }
-
-
-
 }
