@@ -1,6 +1,14 @@
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.DeliverCallback;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowEvent;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.concurrent.TimeoutException;
+
 public class Client extends JFrame implements Runnable, EventsAndConstants, MyConnection {
     public volatile boolean isRunning = true;
     private Thread thread;
@@ -146,30 +154,58 @@ public class Client extends JFrame implements Runnable, EventsAndConstants, MyCo
         tab4ScrollPane.getViewport().add(tab4TextArea);
     }
 
+    public void subscribeToServer() throws IOException, TimeoutException {
+        Connection connection = factory.newConnection();
+        Channel channel = connection.createChannel();
+        channel.exchangeDeclare(exchangeNameForServerToClients, "fanout");
+        String queueName = channel.queueDeclare().getQueue();
+        channel.queueBind(queueName, exchangeNameForServerToClients, "");
+
+        DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+            byte[] bytes = delivery.getBody();
+            Message message = null;
+            try {
+                message = (Message) MyConnection.ByteArrayToObject(bytes);
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+                System.exit(-1);
+            }
+            System.err.println(this.getName() + " received: " + message.getSubject());
+        };
+        channel.basicConsume(queueName, true, deliverCallback, consumerTag -> {
+        });
+    }
+
     @Override
     public void run() {
         inititiateGUI();
-        System.out.println("Client with name " + this.getName() + " started succesfully!");
-        while (isRunning) {
-            if (jButton.getModel().isPressed()) {
-                while (jButton.getModel().isPressed()) {
-                    System.out.print("");
-                }
-                switch (jComboBox1.getSelectedIndex()) {
-                    case PUBLISH:
-                        
-                        break;
-                    case SUBSCRIBE:
-                        
-                        break;
-                    case EDIT:
-                        break;
-                    case DELETE:
-                        break;
-                    default:
+        try {
+            subscribeToServer();
+            System.out.println("Client with name " + this.getName() + " started succesfully!");
+            while (isRunning) {
+                if (jButton.getModel().isPressed()) {
+                    while (jButton.getModel().isPressed()) {
+                        System.out.print("");
+                    }
+                    switch (jComboBox1.getSelectedIndex()) {
+                        case PUBLISH:
+                            
+                            break;
+                        case SUBSCRIBE:
+                           
+                            break;
+                        case EDIT:
+                            break;
+                        case DELETE:
+                            break;
+                        default:
+                    }
                 }
             }
+            System.out.println("Client with name " + this.getName() + " stopped succesfully!");
+        } catch (IOException | TimeoutException e) {
+            e.printStackTrace();
+            System.exit(-1);
         }
-        System.out.println("Client with name " + this.getName() + " stopped succesfully!");
     }
 }
