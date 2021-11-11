@@ -23,6 +23,55 @@ public class Server extends Thread implements EventsAndConstants , MyConnection{
         isRunning = false;
     }
 
+    public synchronized void addStock(Stock stock) {
+        new Thread(() -> {
+            if (stock.isOffer())
+                offers.add(stock);
+            else if (stock.isBid())
+                bids.add(stock);
+            allStocks.add(stock);
+            Message message = new Message(REFRESH_STOCKS,null,new ArrayList<>(allStocks),null);
+            try {
+                publish(message, exchangeNameForServerToClients);
+            } catch (IOException | TimeoutException e) {
+                e.printStackTrace();
+                System.exit(-1);
+            }
+            matchOffersAndBids();
+        }).start();
+    }
+
+    public synchronized void matchOffersAndBids() {
+        new Thread(() -> {
+            boolean foundTransaction = false;
+            for (int i = 0; i < offers.size() && !foundTransaction; i++) {
+                for (int j = 0; j < bids.size() && !foundTransaction; j++) {
+                    if (offers.get(i).matchesPriceWith(bids.get(j))
+                            && !offers.get(i).matchesClientWith(bids.get(j))) {
+                        System.out.println(i + "," + j);
+                        transactions.add(new Transaction(offers.get(i), bids.get(j)));
+                        allStocks.remove(offers.get(i));
+                        allStocks.remove(bids.get(j));
+                        offers.remove(i);
+                        bids.remove(j);
+                        foundTransaction = true;
+                    }
+                }
+            }
+            if (foundTransaction) {
+                Message message1 = new Message(REFRESH_STOCKS, null, new ArrayList<>(allStocks), null);
+                Message message2 = new Message(REFRESH_TRANSACTIONS, null, null, new ArrayList<>(transactions));
+                try {
+                    publish(message1, exchangeNameForServerToClients);
+                    publish(message2, exchangeNameForServerToClients);
+                } catch (IOException | TimeoutException e) {
+                    e.printStackTrace();
+                    System.exit(-1);
+                }
+            }
+        }).start();
+    }
+
     public void startWaitingForClients() throws IOException, TimeoutException {
         Connection connection = factory.newConnection();
         Channel channel = connection.createChannel();
@@ -42,13 +91,24 @@ public class Server extends Thread implements EventsAndConstants , MyConnection{
             switch (message.getSubject()) {
                 case PUBLISH:
                 case SUBSCRIBE:
-
+                    addStock(message.getStock());
                 case EDIT:
-
+                    break;
                 case DELETE:
-
+                    break;
                 case REFRESH:
-
+                    try {
+                        ArrayList<Stock> als = new ArrayList<>(allStocks);
+                        Message messageBack;
+                        messageBack = new Message(REFRESH_STOCKS, null, new ArrayList<>(allStocks), null);
+                        publish(messageBack, exchangeNameForServerToClients);
+                        messageBack = new Message(REFRESH_TRANSACTIONS, null, null, new ArrayList<>(transactions));
+                        publish(messageBack, exchangeNameForServerToClients);
+                    } catch (TimeoutException e) {
+                        e.printStackTrace();
+                        System.exit(-1);
+                    }
+                    break;
                 default:
                     System.out.println("Server received wrong message type!");
                     System.exit(-1);
