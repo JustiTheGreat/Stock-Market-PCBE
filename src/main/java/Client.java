@@ -155,6 +155,27 @@ public class Client extends JFrame implements Runnable, EventsAndConstants, MyCo
         tab4ScrollPane.getViewport().add(tab4TextArea);
     }
 
+    //server-client communication
+    public synchronized void refreshStockTabs(ArrayList<Stock> allStocks) {
+        tab1TextArea.setText("");
+        tab2TextArea.setText("");
+        allStocks.forEach(stock -> {
+            tab1TextArea.append(INDENT + stock.toString() + "\n");
+            if (stock.getClientName().equals(this.getName()))
+                tab2TextArea.append(INDENT + stock.toString() + "\n");
+        });
+    }
+
+    public synchronized void refreshTransactionTabs(ArrayList<Transaction> allTransactions) {
+        tab3TextArea.setText("");
+        tab4TextArea.setText("");
+        allTransactions.forEach(transaction -> {
+            tab3TextArea.append(INDENT + transaction.toString() + "\n");
+            if (transaction.oneOfTransactionMembersIs(this.getName()))
+                tab4TextArea.append(INDENT + transaction.toString() + "\n");
+        });
+    }
+
     public void subscribeToServer() throws IOException, TimeoutException {
         Connection connection = factory.newConnection();
         Channel channel = connection.createChannel();
@@ -172,7 +193,15 @@ public class Client extends JFrame implements Runnable, EventsAndConstants, MyCo
                 System.exit(-1);
             }
             switch (message.getSubject()) {
-                
+                case REFRESH_STOCKS:
+                    refreshStockTabs(message.getStocks());
+                    break;
+                case REFRESH_TRANSACTIONS:
+                    refreshTransactionTabs(message.getTransactions());
+                    break;
+                default:
+                    System.out.println(this.getName() + " received wrong message type!");
+                    System.exit(-1);
             }
             System.err.println(this.getName() + " received: " + message.getSubject());
         };
