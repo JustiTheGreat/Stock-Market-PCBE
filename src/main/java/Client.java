@@ -43,6 +43,11 @@ public class Client extends JFrame implements Runnable, EventsAndConstants, MyCo
     private final JScrollPane tab3ScrollPane = new JScrollPane();
     private final JScrollPane tab4ScrollPane = new JScrollPane();
 
+    public Client(String name){
+        this.setTitle(name);
+        this.setName(name);
+    }
+
     public void setThread(Thread thread) {
         this.thread = thread;
     }
