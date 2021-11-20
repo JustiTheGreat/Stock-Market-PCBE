@@ -1,24 +1,18 @@
 import java.io.Serializable;
 
 public class Stock implements Serializable,EventsAndConstants {
-    private String clientName;
-    private final long ID;
+    private int clientId;
     private final int type;
     private String actionName;
     private int actionNumber;
     private int pricePerAction;
 
-    public Stock(String clientName, int type, String actionName, int actionNumber, int pricePerAction) {
+    public Stock(int clientId, int type, String actionName, int actionNumber, int pricePerAction) {
         this.type = type;
         this.actionName = actionName;
         this.actionNumber = actionNumber;
         this.pricePerAction = pricePerAction;
-        this.clientName = clientName;
-        ID = System.currentTimeMillis();
-    }
-
-    public long getID() {
-        return ID;
+        this.clientId = clientId;
     }
 
     public String getActionName() {
@@ -33,15 +27,19 @@ public class Stock implements Serializable,EventsAndConstants {
         return pricePerAction;
     }
 
-    public String getClientName() {
-        return clientName;
+    public int getClientId() {
+        return clientId;
     }
 
-    public void set(String actionName, int actionNumber, int pricePerAction, String clientName) {
+    public int getType() {
+        return type;
+    }
+
+    public void set(String actionName, int actionNumber, int pricePerAction, int clientId) {
         this.actionName = actionName;
         this.actionNumber = actionNumber;
         this.pricePerAction = pricePerAction;
-        this.clientName = clientName;
+        this.clientId = clientId;
     }
 
     public boolean isOffer() {
@@ -52,27 +50,26 @@ public class Stock implements Serializable,EventsAndConstants {
         return type == BID;
     }
 
-    public boolean hasClient(Client client) {
-        return client.equals(this.clientName);
-    }
+//    public boolean hasClient(Client client) {
+//        return client.equals(this.clientName);
+//    }
 
     public boolean matchesPriceWith(Stock stock) {
         return pricePerAction == stock.getPricePerAction();
     }
 
     public boolean matchesClientWith(Stock stock) {
-        return this.getClientName().equals(stock.getClientName());
+        return this.getClientId() == stock.getClientId();
     }
 
     @Override
     public String toString() {
         return "Bursa{" +
-                "ID=" + ID +
                 ", type=" + type +
                 ", actionName='" + actionName + '\'' +
                 ", actionNumber=" + actionNumber +
                 ", pricePerAction=" + pricePerAction +
-                ", client=" + clientName +
+                ", clientId=" + clientId +
                 '}';
     }
 }

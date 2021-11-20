@@ -71,23 +71,32 @@ public class Dispatcher extends Thread implements DatabaseConnection {
     public static void dispatchClient(Scanner scanner, Connection con) throws SQLException {
         scanner.nextLine();
         String username = scanner.nextLine();
+        int userId = -1; // wrong case, that means this Id doesn't exist on database
 
         if (username != "") {
             String query = "select * from users where name = ?";
-
             PreparedStatement pst = con.prepareStatement(query);
             pst.setString(1, username);
             ResultSet rs = pst.executeQuery();
+            while (rs.next()) {
+                userId = rs.getInt(1);
+            }
 
-            if (!rs.next()) {
+            if (userId == -1) {
                 String createUser = "insert into users (name) values (?)";
                 pst = con.prepareStatement(createUser);
                 pst.setString(1, username);
                 pst.executeUpdate();
 
+                pst = con.prepareStatement(query);
+                pst.setString(1, username);
+                rs = pst.executeQuery();
+                while (rs.next()) {
+                    userId = rs.getInt(1);
+                }
             }
 
-            Client client = new Client(username);
+            Client client = new Client(username, userId);
             clients.add(client);
             client.setThread(new Thread(client));
             client.getThread().start();

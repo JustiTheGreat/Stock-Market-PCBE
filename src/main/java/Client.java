@@ -7,6 +7,7 @@ import java.awt.*;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeoutException;
 
 public class Client extends JFrame implements Runnable, EventsAndConstants, MyConnection {
@@ -43,9 +44,9 @@ public class Client extends JFrame implements Runnable, EventsAndConstants, MyCo
     private final JScrollPane tab3ScrollPane = new JScrollPane();
     private final JScrollPane tab4ScrollPane = new JScrollPane();
 
-    public Client(String name){
-        this.setTitle(name);
-        this.setName(name);
+    public Client(String username, int userId) {
+        this.setTitle(username);
+        this.setName(username + ";" + userId);
     }
 
     public void setThread(Thread thread) {
@@ -159,6 +160,27 @@ public class Client extends JFrame implements Runnable, EventsAndConstants, MyCo
         tab4ScrollPane.getViewport().add(tab4TextArea);
     }
 
+    //server-client communication
+    public synchronized void refreshStockTabs(ArrayList<Stock> allStocks) {
+        tab1TextArea.setText("");
+        tab2TextArea.setText("");
+        allStocks.forEach(stock -> {
+            tab1TextArea.append(INDENT + stock.toString() + "\n");
+            if (stock.getClientId() == Integer.parseInt(this.getName().split(";")[1]))
+                tab2TextArea.append(INDENT + stock.toString() + "\n");
+        });
+    }
+
+    public synchronized void refreshTransactionTabs(ArrayList<Transaction> allTransactions) {
+        tab3TextArea.setText("");
+        tab4TextArea.setText("");
+        allTransactions.forEach(transaction -> {
+            tab3TextArea.append(INDENT + transaction.toString() + "\n");
+            if (transaction.oneOfTransactionMembersIs(Integer.parseInt(this.getName().split(";")[1])))
+                tab4TextArea.append(INDENT + transaction.toString() + "\n");
+        });
+    }
+
     public void subscribeToServer() throws IOException, TimeoutException {
         Connection connection = factory.newConnection();
         Channel channel = connection.createChannel();
@@ -175,6 +197,17 @@ public class Client extends JFrame implements Runnable, EventsAndConstants, MyCo
                 e.printStackTrace();
                 System.exit(-1);
             }
+            switch (message.getSubject()) {
+                case REFRESH_STOCKS:
+                    refreshStockTabs(message.getStocks());
+                    break;
+                case REFRESH_TRANSACTIONS:
+                    refreshTransactionTabs(message.getTransactions());
+                    break;
+                default:
+                    System.out.println(this.getName() + " received wrong message type!");
+                    System.exit(-1);
+            }
             System.err.println(this.getName() + " received: " + message.getSubject());
         };
         channel.basicConsume(queueName, true, deliverCallback, consumerTag -> {
@@ -185,6 +218,7 @@ public class Client extends JFrame implements Runnable, EventsAndConstants, MyCo
     public void run() {
         inititiateGUI();
         try {
+            publish(new Message(REFRESH, null, null, null), exchangeNameForClientsToServer);
             subscribeToServer();
             System.out.println("Client with name " + this.getName() + " started succesfully!");
             while (isRunning) {
@@ -192,12 +226,18 @@ public class Client extends JFrame implements Runnable, EventsAndConstants, MyCo
                     while (jButton.getModel().isPressed()) {
                         System.out.print("");
                     }
+                    Stock stock;
+                    Message message;
                     switch (jComboBox1.getSelectedIndex()) {
                         case PUBLISH:
-                            
+                            stock = new Stock(Integer.parseInt(this.getName().split(";")[1]), OFFER, (String) jComboBox2.getSelectedItem(), (int) jSpinner1.getValue(), (int) jSpinner2.getValue());
+                            message = new Message(PUBLISH, stock, null, null);
+                            publish(message, exchangeNameForClientsToServer);
                             break;
                         case SUBSCRIBE:
-                           
+                            stock = new Stock(Integer.parseInt(this.getName().split(";")[1]), BID, (String) jComboBox2.getSelectedItem(), (int) jSpinner1.getValue(), (int) jSpinner2.getValue());
+                            message = new Message(SUBSCRIBE, stock, null, null);
+                            publish(message, exchangeNameForClientsToServer);
                             break;
                         case EDIT:
                             break;

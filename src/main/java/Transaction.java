@@ -15,9 +15,9 @@ public class Transaction implements Serializable {
         return ID;
     }
 
-    public boolean oneOfTransactionMembersIs(String clientName) {
-        return clientName.equals(offer.getClientName())
-                || clientName.equals(bid.getClientName());
+    public boolean oneOfTransactionMembersIs(int clientId) {
+        return clientId == offer.getClientId()
+                || clientId == bid.getClientId();
     }
 
     @Override
