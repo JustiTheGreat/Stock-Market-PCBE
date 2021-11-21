@@ -230,12 +230,12 @@ public class Client extends JFrame implements Runnable, EventsAndConstants, MyCo
                     Message message;
                     switch (jComboBox1.getSelectedIndex()) {
                         case PUBLISH:
-                            stock = new Stock(Integer.parseInt(this.getName().split(";")[1]), OFFER, (String) jComboBox2.getSelectedItem(), (int) jSpinner1.getValue(), (int) jSpinner2.getValue());
+                            stock = new Stock(0, Integer.parseInt(this.getName().split(";")[1]), OFFER, (String) jComboBox2.getSelectedItem(), (int) jSpinner1.getValue(), (int) jSpinner2.getValue());
                             message = new Message(PUBLISH, stock, null, null);
                             publish(message, exchangeNameForClientsToServer);
                             break;
                         case SUBSCRIBE:
-                            stock = new Stock(Integer.parseInt(this.getName().split(";")[1]), BID, (String) jComboBox2.getSelectedItem(), (int) jSpinner1.getValue(), (int) jSpinner2.getValue());
+                            stock = new Stock(0, Integer.parseInt(this.getName().split(";")[1]), BID, (String) jComboBox2.getSelectedItem(), (int) jSpinner1.getValue(), (int) jSpinner2.getValue());
                             message = new Message(SUBSCRIBE, stock, null, null);
                             publish(message, exchangeNameForClientsToServer);
                             break;

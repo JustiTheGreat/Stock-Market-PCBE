@@ -6,13 +6,15 @@ public class Stock implements Serializable,EventsAndConstants {
     private String actionName;
     private int actionNumber;
     private int pricePerAction;
+    private int id;
 
-    public Stock(int clientId, int type, String actionName, int actionNumber, int pricePerAction) {
+    public Stock(int id,int clientId, int type, String actionName, int actionNumber, int pricePerAction) {
         this.type = type;
         this.actionName = actionName;
         this.actionNumber = actionNumber;
         this.pricePerAction = pricePerAction;
         this.clientId = clientId;
+        this.id = id;
     }
 
     public String getActionName() {
@@ -33,6 +35,10 @@ public class Stock implements Serializable,EventsAndConstants {
 
     public int getType() {
         return type;
+    }
+
+    public int getId() {
+        return id;
     }
 
     public void set(String actionName, int actionNumber, int pricePerAction, int clientId) {
