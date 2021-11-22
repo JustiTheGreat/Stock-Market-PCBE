@@ -259,6 +259,9 @@ public class Client extends JFrame implements Runnable, EventsAndConstants, MyCo
                             publish(message, exchangeNameForClientsToServer);
                             break;
                         case EDIT:
+                            selectedStock.set(name.getSelectedItem().toString(),(int) number.getValue(),(int) price.getValue(),this.getName());
+                            message = new Message(EDIT, selectedStock, null, null);
+                            publish(message, exchangeNameForClientsToServer);
                             break;
                         case DELETE:
                             break;

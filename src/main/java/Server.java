@@ -7,7 +7,7 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.DeliverCallback;
 
 
-public class Server extends Thread implements EventsAndConstants , MyConnection{
+public class Server extends Thread implements EventsAndConstants , MyConnection {
     private volatile boolean isRunning = true;
 
     private CopyOnWriteArrayList<Stock> offers = new CopyOnWriteArrayList();
@@ -30,7 +30,7 @@ public class Server extends Thread implements EventsAndConstants , MyConnection{
             else if (stock.isBid())
                 bids.add(stock);
             allStocks.add(stock);
-            Message message = new Message(REFRESH_STOCKS,null,new ArrayList<>(allStocks),null);
+            Message message = new Message(REFRESH_STOCKS, null, new ArrayList<>(allStocks), null);
             try {
                 publish(message, exchangeNameForServerToClients);
             } catch (IOException | TimeoutException e) {
@@ -92,7 +92,9 @@ public class Server extends Thread implements EventsAndConstants , MyConnection{
                 case PUBLISH:
                 case SUBSCRIBE:
                     addStock(message.getStock());
+                    break;
                 case EDIT:
+                    editStock(message.getStock());
                     break;
                 case DELETE:
                     break;
@@ -120,6 +122,43 @@ public class Server extends Thread implements EventsAndConstants , MyConnection{
         System.err.println("Server started waiting for client messages!");
     }
 
+    private synchronized void editStock(Stock stock) {
+        new Thread(() -> {
+            for (
+                    Stock currentStock : allStocks) {
+                if (currentStock.getID() == stock.getID()) {
+                    allStocks.set(allStocks.indexOf(currentStock), stock);
+                }
+            }
+            if (stock.isBid()) {
+                for (Stock currentStock : bids) {
+                    if (currentStock.getID() == stock.getID()) {
+                        bids.set(bids.indexOf(currentStock), stock);
+                    }
+                }
+            }
+            if (stock.isOffer()) {
+                for (Stock currentStock : offers) {
+                    if (currentStock.getID() == stock.getID()) {
+                        offers.set(offers.indexOf(currentStock), stock);
+                    }
+                }
+            }
+
+            Message message = new Message(REFRESH_STOCKS, null, new ArrayList<>(allStocks), null);
+            try {
+                publish(message, exchangeNameForServerToClients);
+            } catch (IOException |
+                    TimeoutException e) {
+                e.printStackTrace();
+                System.exit(-1);
+            }
+
+            matchOffersAndBids();
+        }).start();
+
+    }
+
 
     @Override
     public void run() {
@@ -130,7 +169,7 @@ public class Server extends Thread implements EventsAndConstants , MyConnection{
             System.exit(-1);
         }
         System.out.println("Server started successfully!");
-        while (isRunning);
+        while (isRunning) ;
         System.out.println("Server closed successfully!");
     }
 }
