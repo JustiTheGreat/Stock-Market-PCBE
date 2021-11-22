@@ -95,6 +95,7 @@ public class Server extends Thread implements EventsAndConstants , MyConnection{
                 case EDIT:
                     break;
                 case DELETE:
+                    deleteStock(message.getStock());
                     break;
                 case REFRESH:
                     try {
@@ -120,6 +121,42 @@ public class Server extends Thread implements EventsAndConstants , MyConnection{
         System.err.println("Server started waiting for client messages!");
     }
 
+
+    private synchronized void deleteStock(Stock stock) {
+        new Thread(() -> {
+            for (
+                    Stock currentStock : allStocks) {
+                if (currentStock.getID() == stock.getID()) {
+                    allStocks.remove(currentStock);
+                }
+            }
+            if (stock.isBid()) {
+                for (Stock currentStock : bids) {
+                    if (currentStock.getID() == stock.getID()) {
+                        bids.remove(currentStock);
+                    }
+                }
+            }
+            if (stock.isOffer()) {
+                for (Stock currentStock : offers) {
+                    if (currentStock.getID() == stock.getID()) {
+                        offers.remove(currentStock);
+                    }
+                }
+            }
+
+            Message message = new Message(REFRESH_STOCKS, null, new ArrayList<>(allStocks), null);
+            try {
+                publish(message, exchangeNameForServerToClients);
+            } catch (IOException |
+                    TimeoutException e) {
+                e.printStackTrace();
+                System.exit(-1);
+            }
+
+            matchOffersAndBids();
+        }).start();
+    }
 
     @Override
     public void run() {

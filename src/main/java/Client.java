@@ -261,6 +261,8 @@ public class Client extends JFrame implements Runnable, EventsAndConstants, MyCo
                         case EDIT:
                             break;
                         case DELETE:
+                            message = new Message(DELETE, selectedStock, null, null);
+                            publish(message, exchangeNameForClientsToServer);
                             break;
                         default:
                     }
