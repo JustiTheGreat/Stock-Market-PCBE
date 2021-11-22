@@ -66,13 +66,13 @@ public class Stock implements Serializable,EventsAndConstants {
 
     @Override
     public String toString() {
-        return "Bursa{" +
-                "ID=" + ID +
-                ", type=" + type +
-                ", actionName='" + actionName + '\'' +
-                ", actionNumber=" + actionNumber +
-                ", pricePerAction=" + pricePerAction +
-                ", client=" + clientName +
-                '}';
+        return "Bursa{"
+                + "ID=" + ID
+                + ", type=" + type
+                + ", actionName=" + actionName
+                + ", actionNumber=" + actionNumber
+                + ", pricePerAction=" + pricePerAction
+                + ", client=" + clientName
+                + '}';
     }
 }
