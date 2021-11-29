@@ -144,6 +144,10 @@ public class Server extends Thread implements EventsAndConstants , MyConnection,
                     }).start();
                     break;
                 case DELETE:
+                Message finalMessage2 = message;
+                new Thread(() -> {
+                    deleteStock(finalMessage2.getStock());
+                }).start();      
                     break;
                 case REFRESH:
                     new Thread(this::refreshData).start();
@@ -161,8 +165,21 @@ public class Server extends Thread implements EventsAndConstants , MyConnection,
 
     private void editStock(Stock stock) {
         updateStock(stock);
+        refreshData();
     }
 
+    private void deleteStock(Stock stock){
+        try {
+            String deleteStock = "delete stock where id = ?";
+            PreparedStatement pst = con.prepareStatement(deleteStock);
+            pst.setInt(6, stock.getStockId());
+            pst.executeUpdate();
+
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+        refreshData();
+    }
 
     public synchronized void updateStock(Stock stock) {
         try {
