@@ -28,6 +28,11 @@ public class Client extends JFrame implements Runnable, EventsAndConstants, MyCo
         add(new JList());
     }};
 
+    public Client(String username, int userId) {
+        this.setTitle(username);
+        this.setName(username + ";" + userId);
+    }
+
     public void setThread(Thread thread) {
         this.thread = thread;
     }
@@ -181,7 +186,7 @@ public class Client extends JFrame implements Runnable, EventsAndConstants, MyCo
         DefaultListModel<Stock> client = new DefaultListModel<>();
         allStocks.forEach(stock -> {
             all.addElement(stock);
-            if (stock.getClientName().equals(this.getName()))
+            if (stock.getClientId()==Integer.parseInt(this.getName().split(";")[1]))
                 client.addElement(stock);
         });
         jLists.get(0).setModel(all);
@@ -193,7 +198,7 @@ public class Client extends JFrame implements Runnable, EventsAndConstants, MyCo
         DefaultListModel<Transaction> client = new DefaultListModel<>();
         allTransactions.forEach(transaction -> {
             all.addElement(transaction);
-            if (transaction.oneOfTransactionMembersIs(this.getName()))
+            if (transaction.oneOfTransactionMembersIs(Integer.parseInt(this.getName().split(";")[1])))
                 client.addElement(transaction);
         });
         jLists.get(2).setModel(all);
@@ -249,17 +254,17 @@ public class Client extends JFrame implements Runnable, EventsAndConstants, MyCo
                     Message message;
                     switch (action.getSelectedIndex()) {
                         case PUBLISH:
-                            stock = new Stock(this.getName(), OFFER, (String) name.getSelectedItem(), (int) number.getValue(), (int) price.getValue());
+                            stock = new Stock(-1, Integer.parseInt(this.getName().split(";")[1]), OFFER, (String) name.getSelectedItem(), (int) number.getValue(), (int) price.getValue());
                             message = new Message(PUBLISH, stock, null, null);
                             publish(message, exchangeNameForClientsToServer);
                             break;
                         case SUBSCRIBE:
-                            stock = new Stock(this.getName(), BID, (String) name.getSelectedItem(), (int) number.getValue(), (int) price.getValue());
+                            stock = new Stock(-1, Integer.parseInt(this.getName().split(";")[1]), BID, (String) name.getSelectedItem(), (int) number.getValue(), (int) price.getValue());
                             message = new Message(SUBSCRIBE, stock, null, null);
                             publish(message, exchangeNameForClientsToServer);
                             break;
                         case EDIT:
-                            selectedStock.set(name.getSelectedItem().toString(),(int) number.getValue(),(int) price.getValue(),this.getName());
+                            selectedStock.set(name.getSelectedItem().toString(),(int) number.getValue(),(int) price.getValue());
                             message = new Message(EDIT, selectedStock, null, null);
                             publish(message, exchangeNameForClientsToServer);
                             break;
