@@ -2,10 +2,7 @@ public interface EventsAndConstants {
     //stock type
     int OFFER = 0;
     int BID = 1;
-    int OFFER_INACTIVE = -1;
-    int BID_INACTIVE = -1;
-    int GET_ACTIVE = 0;
-    int GET_ALL = -2;
+    int INACTIVE = -1;
     //message type
     int PUBLISH = 0;
     int SUBSCRIBE = 1;
