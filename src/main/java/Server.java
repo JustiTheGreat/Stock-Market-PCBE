@@ -170,9 +170,9 @@ public class Server extends Thread implements EventsAndConstants , MyConnection,
 
     private void deleteStock(Stock stock){
         try {
-            String deleteStock = "delete stock where id = ?";
+            String deleteStock = "delete from stock where id = ?";
             PreparedStatement pst = con.prepareStatement(deleteStock);
-            pst.setInt(6, stock.getStockId());
+            pst.setInt(1, stock.getStockId());
             pst.executeUpdate();
 
         } catch (SQLException throwables) {
