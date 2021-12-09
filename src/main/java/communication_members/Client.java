@@ -16,14 +16,18 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static connections.RabbitMQConnection.*;
-
 
 public class Client extends JFrame implements Runnable, EventsAndConstants {
     public volatile boolean isRunning = true;
     private Thread thread;
     private Stock selectedStock;
+    private final ReentrantLock allStocksLock = new ReentrantLock(true);
+    private final ReentrantLock clientStocksLock = new ReentrantLock(true);
+    private final ReentrantLock allTransactionsLock = new ReentrantLock(true);
+    private final ReentrantLock clientTransactionsLock = new ReentrantLock(true);
     //GUI elements
     //the inputs from the left panel
     private final JComboBox<String> action = new JComboBox<>(ACTIONS);
@@ -32,11 +36,13 @@ public class Client extends JFrame implements Runnable, EventsAndConstants {
     private final JSpinner price = new JSpinner();
     private final JButton jButton = new JButton();
     //the lists from the right panel
-    private final ArrayList<JList> jLists = new ArrayList<JList>() {{
-        add(new JList());
-        add(new JList());
-        add(new JList());
-        add(new JList());
+    private final ArrayList<JList<Stock>> stockJLists = new ArrayList<JList<Stock>>() {{
+        add(new JList<Stock>(){{setModel(new DefaultListModel<>());}});
+        add(new JList<Stock>(){{setModel(new DefaultListModel<>());}});
+        }};
+    private final ArrayList<JList<Transaction>> transactionJLists = new ArrayList<JList<Transaction>>() {{
+        add(new JList<Transaction>(){{setModel(new DefaultListModel<>());}});
+        add(new JList<Transaction>(){{setModel(new DefaultListModel<>());}});
     }};
 
     public Client(String username, int userId) {
@@ -77,27 +83,22 @@ public class Client extends JFrame implements Runnable, EventsAndConstants {
         jList.setLayoutOrientation(JList.HORIZONTAL_WRAP);
         jList.setVisibleRowCount(-1);
         jList.setEnabled(false);
+    }
+
+    private void setListActionListener(JList<Stock> jList){
         jList.addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting() && jLists.get(1).getSelectedIndex() != -1) {
-                JList editableJList = jLists.get(1);
-                switch (action.getSelectedIndex()) {
-                    case EDIT:
-                        selectedStock = (Stock) editableJList.getModel().getElementAt(editableJList.getSelectedIndex());
-                        name.setSelectedIndex(getIndexOfActionName((selectedStock.getActionName())));
-                        number.setValue(selectedStock.getActionNumber());
-                        price.setValue(selectedStock.getPricePerAction());
-                        name.setEnabled(true);
-                        number.setEnabled(true);
-                        price.setEnabled(true);
-                        jButton.setEnabled(true);
-                    case DELETE:
-                        selectedStock = (Stock) editableJList.getModel().getElementAt(editableJList.getSelectedIndex());
-                        name.setSelectedIndex(getIndexOfActionName((selectedStock.getActionName())));
-                        number.setValue(selectedStock.getActionNumber());
-                        price.setValue(selectedStock.getPricePerAction());
-                        jButton.setEnabled(true);
-                        break;
-                    default:
+            clientStocksLock.lock();
+            if (!e.getValueIsAdjusting() && stockJLists.get(1).getSelectedIndex() != -1) {
+                JList<Stock> editableJList = stockJLists.get(1);
+                selectedStock = editableJList.getModel().getElementAt(editableJList.getSelectedIndex());
+                clientStocksLock.unlock();
+                name.setSelectedIndex(getIndexOfActionName((selectedStock.getActionName())));
+                number.setValue(selectedStock.getActionNumber());
+                price.setValue(selectedStock.getPricePerAction());
+                if(action.getSelectedIndex()==EDIT){
+                    name.setEnabled(true);
+                    number.setEnabled(true);
+                    price.setEnabled(true);
                 }
                 jButton.setEnabled(true);
             }
@@ -111,10 +112,18 @@ public class Client extends JFrame implements Runnable, EventsAndConstants {
         }};
     }
 
-    private void addTab(JTabbedPane jTabbedPane, int index, String title) {
+    private void addStockTab(JTabbedPane jTabbedPane, int index, String title) {
         JScrollPane jScrollPane = new JScrollPane();
-        JListSetup(jLists.get(index));
-        jScrollPane.getViewport().add(jLists.get(index));
+        JListSetup(stockJLists.get(index));
+        if(index == 1) setListActionListener(stockJLists.get(index));
+        jScrollPane.getViewport().add(stockJLists.get(index));
+        jTabbedPane.addTab(title, newJPanel(jScrollPane));
+    }
+
+    private void addTransactionTab(JTabbedPane jTabbedPane, int index, String title) {
+        JScrollPane jScrollPane = new JScrollPane();
+        JListSetup(transactionJLists.get(index));
+        jScrollPane.getViewport().add(transactionJLists.get(index));
         jTabbedPane.addTab(title, newJPanel(jScrollPane));
     }
 
@@ -141,8 +150,8 @@ public class Client extends JFrame implements Runnable, EventsAndConstants {
             switch (action.getSelectedIndex()) {
                 case PUBLISH:
                 case SUBSCRIBE:
-                    jLists.get(1).clearSelection();
-                    jLists.get(1).setEnabled(false);
+                    stockJLists.get(1).clearSelection();
+                    stockJLists.get(1).setEnabled(false);
                     name.setEnabled(true);
                     number.setEnabled(true);
                     price.setEnabled(true);
@@ -150,8 +159,8 @@ public class Client extends JFrame implements Runnable, EventsAndConstants {
                     break;
                 case EDIT:
                 case DELETE:
-                    jLists.get(1).clearSelection();
-                    jLists.get(1).setEnabled(true);
+                    stockJLists.get(1).clearSelection();
+                    stockJLists.get(1).setEnabled(true);
                     name.setEnabled(false);
                     number.setEnabled(false);
                     price.setEnabled(false);
@@ -182,38 +191,52 @@ public class Client extends JFrame implements Runnable, EventsAndConstants {
         rightPanel.setPreferredSize(new Dimension(680, 400));
 
         JTabbedPane jTabbedPane = new JTabbedPane();
-        addTab(jTabbedPane, 0, "All Bids&Offers");
-        addTab(jTabbedPane, 1, "My Bids&Offers");
-        addTab(jTabbedPane, 2, "All Transactions History");
-        addTab(jTabbedPane, 3, "My Transactions History");
+        addStockTab(jTabbedPane, 0, "All Bids&Offers");
+        addStockTab(jTabbedPane, 1, "My Bids&Offers");
+        addTransactionTab(jTabbedPane, 0, "All Transactions History");
+        addTransactionTab(jTabbedPane, 1, "My Transactions History");
         rightPanel.add(jTabbedPane);
 
         this.getContentPane().add(rightPanel, BorderLayout.EAST);
     }
 
     //server-client communication
-    public synchronized void refreshStockTabs(ArrayList<Stock> allStocks) {
-        DefaultListModel<Stock> all = new DefaultListModel<>();
-        DefaultListModel<Stock> client = new DefaultListModel<>();
-        allStocks.forEach(stock -> {
-            all.addElement(stock);
-            if (stock.getClientId() == Integer.parseInt(this.getName().split(";")[1]))
-                client.addElement(stock);
-        });
-        jLists.get(0).setModel(all);
-        jLists.get(1).setModel(client);
+    public void refreshStockTabs(ArrayList<Stock> allStocks) {
+        new Thread(() ->{
+            allStocksLock.lock();
+            ((DefaultListModel<Stock>)stockJLists.get(0).getModel()).removeAllElements();
+            allStocks.forEach(stock -> ((DefaultListModel<Stock>) stockJLists.get(0).getModel()).addElement(stock));
+            allStocksLock.unlock();
+        }).start();
+
+        new Thread(() ->{
+            clientStocksLock.lock();
+            ((DefaultListModel<Stock>)stockJLists.get(1).getModel()).removeAllElements();
+            allStocks.forEach(stock -> {
+                if (stock.getClientId() == Integer.parseInt(this.getName().split(";")[1]))
+                    ((DefaultListModel<Stock>) stockJLists.get(1).getModel()).addElement(stock);
+            });
+            clientStocksLock.unlock();
+        }).start();
     }
 
-    public synchronized void refreshTransactionTabs(ArrayList<Transaction> allTransactions) {
-        DefaultListModel<Transaction> all = new DefaultListModel<>();
-        DefaultListModel<Transaction> client = new DefaultListModel<>();
-        allTransactions.forEach(transaction -> {
-            all.addElement(transaction);
-            if (transaction.oneOfTransactionMembersIs(Integer.parseInt(this.getName().split(";")[1])))
-                client.addElement(transaction);
-        });
-        jLists.get(2).setModel(all);
-        jLists.get(3).setModel(client);
+    public void refreshTransactionTabs(ArrayList<Transaction> allTransactions) {
+        new Thread(() ->{
+            allTransactionsLock.lock();
+            ((DefaultListModel<Transaction>)transactionJLists.get(0).getModel()).removeAllElements();
+            allTransactions.forEach(transaction -> ((DefaultListModel<Transaction>) transactionJLists.get(0).getModel()).addElement(transaction));
+            allTransactionsLock.unlock();
+        }).start();
+
+        new Thread(() ->{
+            clientTransactionsLock.lock();
+            ((DefaultListModel<Transaction>)transactionJLists.get(1).getModel()).removeAllElements();
+            allTransactions.forEach(transaction -> {
+                if (transaction.oneOfTransactionMembersIs(Integer.parseInt(this.getName().split(";")[1])))
+                    ((DefaultListModel<Transaction>) transactionJLists.get(1).getModel()).addElement(transaction);
+            });
+            clientTransactionsLock.unlock();
+        }).start();
     }
 
     public void subscribeToServer() throws IOException, TimeoutException {
