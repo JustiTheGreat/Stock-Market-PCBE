@@ -16,7 +16,7 @@ public class RabbitMQConnection {
     public static String exchangeNameForClientsToServer = "CTS";
     public static String exchangeNameForServerToClients = "STC";
 
-    public static RabbitMQConnection getInstance(){
+    public static RabbitMQConnection getInstance() {
         return instance;
     }
 

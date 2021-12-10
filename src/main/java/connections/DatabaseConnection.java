@@ -6,8 +6,6 @@ import data_objects.Transaction;
 
 import java.sql.*;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -42,21 +40,24 @@ public class DatabaseConnection {
     }
 
     public int getUserIdByName(String username) {
+        ThreadLocal<Integer> id = new ThreadLocal<Integer>() {{
+            set(null);
+        }};
+        String selectUserByName = "select * from users where name = ?";
+        userReadLock.lock();
         try {
-            String selectUserByName = "select * from users where name = ?";
-            userReadLock.lock();
             PreparedStatement pst = DATABASE_CONNECTION.prepareStatement(selectUserByName);
             pst.setString(1, username);
-            ThreadLocal<ResultSet> rs = new ThreadLocal<ResultSet>() {{
-                set(pst.executeQuery());
-            }};
-            userReadLock.unlock();
-            if (rs.get().next()) return rs.get().getInt(1);
+            ResultSet rs = pst.executeQuery();
+            if (rs.next()) id.set(rs.getInt(1));
         } catch (SQLException e) {
             e.printStackTrace();
             System.exit(-1);
+        } finally {
+            userReadLock.unlock();
         }
-        return USER_ID_NOT_FOUND;
+        if (id.get() == null) return USER_ID_NOT_FOUND;
+        return id.get();
     }
 
     public void insertUser(String username) {
@@ -74,66 +75,65 @@ public class DatabaseConnection {
     }
 
     public ArrayList<Stock> getAllActiveStocks() {
+        ThreadLocal<ArrayList<Stock>> stocks = ThreadLocal.withInitial(ArrayList::new);
+        String selectAllStocks = "select * from stock";
         try {
-            String selectAllStocks = "select * from stock";
             PreparedStatement pst = DATABASE_CONNECTION.prepareStatement(selectAllStocks);
             stockReadLock.lock();
-            ThreadLocal<ResultSet> rs = new ThreadLocal<ResultSet>() {{
-                set(pst.executeQuery());
-            }};
-            stockReadLock.unlock();
-            Collection<Stock> allStocks = Collections.synchronizedCollection(new ArrayList<>());
-            while (rs.get().next()) {
-                if (rs.get().getInt(2) != EventsAndConstants.INACTIVE) {
-                    allStocks.add(new Stock(rs.get().getInt(1), rs.get().getInt(6), rs.get().getInt(2), rs.get().getString(3), rs.get().getInt(4), rs.get().getInt(5)));
+            ResultSet rs = pst.executeQuery();
+            while (rs.next()) {
+                if (rs.getInt(2) != EventsAndConstants.INACTIVE) {
+                    stocks.get().add(new Stock(rs.getInt(1), rs.getInt(6), rs.getInt(2), rs.getString(3), rs.getInt(4), rs.getInt(5)));
                 }
             }
-            return (ArrayList<Stock>) allStocks;
         } catch (SQLException e) {
             e.printStackTrace();
             System.exit(-1);
+        } finally {
+            stockReadLock.unlock();
         }
-        return null;
+        return stocks.get();
     }
 
     public Stock getStockById(int id) {
+        ThreadLocal<Stock> stock = new ThreadLocal<Stock>() {{
+            set(null);
+        }};
+        String selectStockById = "select * from stock where id = ?";
+        stockReadLock.lock();
         try {
-            String selectStockById = "select * from stock where id = ?";
-            stockReadLock.lock();
             PreparedStatement pst = DATABASE_CONNECTION.prepareStatement(selectStockById);
             pst.setInt(1, id);
-            ThreadLocal<ResultSet> rs = new ThreadLocal<ResultSet>() {{
-                set(pst.executeQuery());
-            }};
-            stockReadLock.unlock();
-            if (rs.get().next()) {
-                return new Stock(rs.get().getInt(1), rs.get().getInt(6), rs.get().getInt(2), rs.get().getString(3), rs.get().getInt(4), rs.get().getInt(5));
+            ResultSet rs = pst.executeQuery();
+            if (rs.next()) {
+                stock.set(new Stock(rs.getInt(1), rs.getInt(6), rs.getInt(2), rs.getString(3), rs.getInt(4), rs.getInt(5)));
             }
         } catch (SQLException e) {
             e.printStackTrace();
             System.exit(-1);
+        } finally {
+            stockReadLock.unlock();
         }
-        return null;
+        return stock.get();
     }
 
     public ArrayList<Transaction> getAllTransactions() {
-        ArrayList<Transaction> transactions = new ArrayList<>();
+        ThreadLocal<ArrayList<Transaction>> transactions = ThreadLocal.withInitial(ArrayList::new);
+        String selectAllTransactions = "select * from transaction";
         try {
-            String selectAllTransactions = "select * from transaction";
             PreparedStatement pst = DATABASE_CONNECTION.prepareStatement(selectAllTransactions);
             transactionReadLock.lock();
-            ThreadLocal<ResultSet> rs = new ThreadLocal<ResultSet>() {{
-                set(pst.executeQuery());
-            }};
-            transactionReadLock.unlock();
-            while (rs.get().next()) {
-                transactions.add(new Transaction(getStockById(rs.get().getInt(2)), getStockById(rs.get().getInt(3))));
+            ResultSet rs = pst.executeQuery();
+            while (rs.next()) {
+                transactions.get().add(new Transaction(getStockById(rs.getInt(2)), getStockById(rs.getInt(3))));
             }
         } catch (SQLException e) {
             e.printStackTrace();
             System.exit(-1);
+        } finally {
+            transactionReadLock.unlock();
         }
-        return transactions;
+        return transactions.get();
     }
 
     public void insertStock(Stock stock) {
