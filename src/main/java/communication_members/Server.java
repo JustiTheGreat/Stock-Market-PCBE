@@ -35,59 +35,54 @@ public class Server extends Thread implements EventsAndConstants {
         new Thread(this::matchOffersAndBids).start();
     }
 
-    public synchronized void matchOffersAndBids() {
+    public void matchOffersAndBids() {
 
         List<Stock> allStocks = Collections.synchronizedList(DatabaseConnection.getInstance().getAllActiveStocks());
         List<Stock> bids = Collections.synchronizedList(new ArrayList<>());
         List<Stock> offers = Collections.synchronizedList(new ArrayList<>());
 
-        synchronized(allStocks) {
-            Iterator<Stock> i = allStocks.iterator();
-            while (i.hasNext()){
-                synchronized(bids){
-                    synchronized(offers){
-                        Stock aux = i.next();
-                        if (aux.isBid()) bids.add(aux);
-                        else if (aux.isOffer()) offers.add(aux);
-                    }
-                }
-            }
-        }
-
         ThreadLocal<Boolean> foundTransaction = new ThreadLocal<>();
         foundTransaction.set(false);
 
-        synchronized(offers){
-            Iterator<Stock> i = offers.iterator();
-            while(i.hasNext() && !foundTransaction.get()){
-                synchronized(bids){
-                    Iterator<Stock> j = bids.iterator();
-                    while(j.hasNext() && !foundTransaction.get()){
-                        Stock offer = i.next();
-                        Stock bid = j.next();
-                        if (offer.matchesPriceWith(bid) && !offer.matchesClientWith(bid)) {
-                            if (offer.getActionNumber() == bid.getActionNumber()) {
-                                DatabaseConnection.getInstance().insertTransaction(offer, bid);
-                                DatabaseConnection.getInstance().updateStock(new Stock(offer.getStockId(), offer.getClientId(), INACTIVE, offer.getActionName(), offer.getActionNumber(), offer.getPricePerAction()));
-                                DatabaseConnection.getInstance().updateStock(new Stock(bid.getStockId(), bid.getClientId(), INACTIVE, bid.getActionName(), bid.getActionNumber(), bid.getPricePerAction()));
-                            } else if (offer.getActionNumber() >= bid.getActionNumber()) {
-                                int newActionNumber = offer.getActionNumber() - bid.getActionNumber();
-                                DatabaseConnection.getInstance().insertTransaction(offer, bid);
-                                DatabaseConnection.getInstance().updateStock(new Stock(offer.getStockId(), offer.getClientId(), offer.getType(), offer.getActionName(), newActionNumber, offer.getPricePerAction()));
-                                DatabaseConnection.getInstance().updateStock(new Stock(bid.getStockId(), bid.getClientId(), INACTIVE, bid.getActionName(), bid.getActionNumber(), bid.getPricePerAction()));
-                            } else {
-                                int newActionNumber = bid.getActionNumber() - offer.getActionNumber();
-                                DatabaseConnection.getInstance().insertTransaction(offer, bid);
-                                DatabaseConnection.getInstance().updateStock(new Stock(offer.getStockId(), offer.getClientId(), INACTIVE, offer.getActionName(), offer.getActionNumber(), offer.getPricePerAction()));
-                                DatabaseConnection.getInstance().updateStock(new Stock(bid.getStockId(), bid.getClientId(), bid.getType(), bid.getActionName(), newActionNumber, bid.getPricePerAction()));
+        synchronized(allStocks) {
+            synchronized(bids){
+                synchronized(offers){
+                    Iterator<Stock> k = allStocks.iterator();
+                    while (k.hasNext()){
+                        Stock aux = k.next();
+                        if (aux.isBid()) bids.add(aux);
+                        else if (aux.isOffer()) offers.add(aux);
+                    }
+                    Iterator<Stock> i = offers.iterator();
+                    while(i.hasNext() && !foundTransaction.get()){
+                        Iterator<Stock> j = bids.iterator();
+                        while(j.hasNext() && !foundTransaction.get()){
+                            Stock offer = i.next();
+                            Stock bid = j.next();
+                            if (offer.matchesPriceWith(bid) && !offer.matchesClientWith(bid)) {
+                                if (offer.getActionNumber() == bid.getActionNumber()) {
+                                    DatabaseConnection.getInstance().insertTransaction(offer, bid);
+                                    DatabaseConnection.getInstance().updateStock(new Stock(offer.getStockId(), offer.getClientId(), INACTIVE, offer.getActionName(), offer.getActionNumber(), offer.getPricePerAction()));
+                                    DatabaseConnection.getInstance().updateStock(new Stock(bid.getStockId(), bid.getClientId(), INACTIVE, bid.getActionName(), bid.getActionNumber(), bid.getPricePerAction()));
+                                } else if (offer.getActionNumber() >= bid.getActionNumber()) {
+                                    int newActionNumber = offer.getActionNumber() - bid.getActionNumber();
+                                    DatabaseConnection.getInstance().insertTransaction(offer, bid);
+                                    DatabaseConnection.getInstance().updateStock(new Stock(offer.getStockId(), offer.getClientId(), offer.getType(), offer.getActionName(), newActionNumber, offer.getPricePerAction()));
+                                    DatabaseConnection.getInstance().updateStock(new Stock(bid.getStockId(), bid.getClientId(), INACTIVE, bid.getActionName(), bid.getActionNumber(), bid.getPricePerAction()));
+                                } else {
+                                    int newActionNumber = bid.getActionNumber() - offer.getActionNumber();
+                                    DatabaseConnection.getInstance().insertTransaction(offer, bid);
+                                    DatabaseConnection.getInstance().updateStock(new Stock(offer.getStockId(), offer.getClientId(), INACTIVE, offer.getActionName(), offer.getActionNumber(), offer.getPricePerAction()));
+                                    DatabaseConnection.getInstance().updateStock(new Stock(bid.getStockId(), bid.getClientId(), bid.getType(), bid.getActionName(), newActionNumber, bid.getPricePerAction()));
+                                }
+                                foundTransaction.set(true);
                             }
-                            foundTransaction.set(true);
                         }
                     }
                 }
             }
         }
-
+        
         if (foundTransaction.get()) {
             refreshData();
         }
