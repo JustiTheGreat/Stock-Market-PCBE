@@ -21,6 +21,9 @@ import static connections.RabbitMQConnection.*;
 public class Server extends Thread implements EventsAndConstants {
     private volatile boolean isRunning = true;
 
+   private final ThreadLocal<Boolean> foundTransaction = new ThreadLocal<Boolean>() { {set(false);} };
+
+
     public Server(String name) {
         super(name);
     }
@@ -41,8 +44,7 @@ public class Server extends Thread implements EventsAndConstants {
         List<Stock> bids = Collections.synchronizedList(new ArrayList<>());
         List<Stock> offers = Collections.synchronizedList(new ArrayList<>());
 
-        ThreadLocal<Boolean> foundTransaction = new ThreadLocal<>();
-        foundTransaction.set(false);
+
 
         synchronized(allStocks) {
             synchronized(bids){
@@ -146,7 +148,7 @@ public class Server extends Thread implements EventsAndConstants {
             System.exit(-1);
         }
         System.out.println("Server started successfully!");
-        while (isRunning) ;
+        while (isRunning);
         System.out.println("Server closed successfully!");
     }
 }

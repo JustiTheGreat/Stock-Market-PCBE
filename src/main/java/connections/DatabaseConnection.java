@@ -7,6 +7,7 @@ import data_objects.Transaction;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class DatabaseConnection {
@@ -26,6 +27,23 @@ public class DatabaseConnection {
     private final Lock transactionReadLock = transactionRWLock.readLock();
     private final Lock transactionWriteLock = transactionRWLock.writeLock();
 
+    private final ReentrantLock userReadLock2 = new ReentrantLock();
+    private final ReentrantLock stockReadLock2 = new ReentrantLock();
+    private final ReentrantLock transactionReadLock2 = new ReentrantLock();
+    private final ReentrantLock allStocksReadLock = new ReentrantLock();
+
+    private final ThreadLocal<Integer> idClient = new ThreadLocal<Integer>() {{
+        set(null);
+    }};
+
+    private final ThreadLocal<ArrayList<Stock>> stocks = ThreadLocal.withInitial(ArrayList::new);
+
+    private final ThreadLocal<Stock> stock = new ThreadLocal<Stock>() {{
+        set(null);
+    }};
+
+    private final ThreadLocal<ArrayList<Transaction>> transactions = ThreadLocal.withInitial(ArrayList::new);
+
     private DatabaseConnection() {
         try {
             DATABASE_CONNECTION = DriverManager.getConnection("jdbc:postgresql://localhost:5432/stockmarket", "postgres", "pcbe");
@@ -40,24 +58,23 @@ public class DatabaseConnection {
     }
 
     public int getUserIdByName(String username) {
-        ThreadLocal<Integer> id = new ThreadLocal<Integer>() {{
-            set(null);
-        }};
         String selectUserByName = "select * from users where name = ?";
         userReadLock.lock();
+        userReadLock2.lock();
         try {
             PreparedStatement pst = DATABASE_CONNECTION.prepareStatement(selectUserByName);
             pst.setString(1, username);
             ResultSet rs = pst.executeQuery();
-            if (rs.next()) id.set(rs.getInt(1));
+            if (rs.next()) idClient.set(rs.getInt(1));
         } catch (SQLException e) {
             e.printStackTrace();
             System.exit(-1);
         } finally {
+            userReadLock2.unlock();
             userReadLock.unlock();
         }
-        if (id.get() == null) return USER_ID_NOT_FOUND;
-        return id.get();
+        if (idClient.get() == null) return USER_ID_NOT_FOUND;
+        return idClient.get();
     }
 
     public void insertUser(String username) {
@@ -75,11 +92,12 @@ public class DatabaseConnection {
     }
 
     public ArrayList<Stock> getAllActiveStocks() {
-        ThreadLocal<ArrayList<Stock>> stocks = ThreadLocal.withInitial(ArrayList::new);
+
         String selectAllStocks = "select * from stock";
         try {
             PreparedStatement pst = DATABASE_CONNECTION.prepareStatement(selectAllStocks);
             stockReadLock.lock();
+            allStocksReadLock.lock();
             ResultSet rs = pst.executeQuery();
             while (rs.next()) {
                 if (rs.getInt(2) != EventsAndConstants.INACTIVE) {
@@ -90,17 +108,16 @@ public class DatabaseConnection {
             e.printStackTrace();
             System.exit(-1);
         } finally {
+            allStocksReadLock.unlock();
             stockReadLock.unlock();
         }
         return stocks.get();
     }
 
     public Stock getStockById(int id) {
-        ThreadLocal<Stock> stock = new ThreadLocal<Stock>() {{
-            set(null);
-        }};
         String selectStockById = "select * from stock where id = ?";
         stockReadLock.lock();
+        stockReadLock2.lock();
         try {
             PreparedStatement pst = DATABASE_CONNECTION.prepareStatement(selectStockById);
             pst.setInt(1, id);
@@ -112,17 +129,18 @@ public class DatabaseConnection {
             e.printStackTrace();
             System.exit(-1);
         } finally {
+            stockReadLock2.unlock();
             stockReadLock.unlock();
         }
         return stock.get();
     }
 
     public ArrayList<Transaction> getAllTransactions() {
-        ThreadLocal<ArrayList<Transaction>> transactions = ThreadLocal.withInitial(ArrayList::new);
         String selectAllTransactions = "select * from transaction";
         try {
             PreparedStatement pst = DATABASE_CONNECTION.prepareStatement(selectAllTransactions);
             transactionReadLock.lock();
+            transactionReadLock2.lock();
             ResultSet rs = pst.executeQuery();
             while (rs.next()) {
                 transactions.get().add(new Transaction(getStockById(rs.getInt(2)), getStockById(rs.getInt(3))));
@@ -131,6 +149,7 @@ public class DatabaseConnection {
             e.printStackTrace();
             System.exit(-1);
         } finally {
+            transactionReadLock2.unlock();
             transactionReadLock.unlock();
         }
         return transactions.get();
