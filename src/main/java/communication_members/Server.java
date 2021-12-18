@@ -34,48 +34,53 @@ public class Server extends Thread implements EventsAndConstants {
     public void addStock(Stock stock) {
         DatabaseConnection.getInstance().insertStock(stock);
         new Thread(() -> RabbitMQConnection.getInstance().publish(new Message(REFRESH_STOCKS, null, DatabaseConnection.getInstance().getAllActiveStocks(), null), exchangeNameForServerToClients)).start();
-        new Thread(() -> matchOffersAndBids(stock)).start();
+        new Thread(this::matchOffersAndBids).start();
     }
 
-    public void matchOffersAndBids(Stock stock) {
+    public void matchOffersAndBids() {
         List<Stock> allStocks = Collections.synchronizedList(DatabaseConnection.getInstance().getAllActiveStocks());
-        List<Stock> listToSearchIn = Collections.synchronizedList(new ArrayList<>());
+        List<Stock> bids = Collections.synchronizedList(new ArrayList<>());
+        List<Stock> offers = Collections.synchronizedList(new ArrayList<>());
 
-        synchronized(allStocks) {
-            synchronized(listToSearchIn) {
-                for (Stock aux : allStocks) {
-                    if (stock.isOffer() && aux.isBid() || stock.isBid() && aux.isOffer()) {
-                        listToSearchIn.add(aux);
+
+        synchronized (allStocks) {
+            synchronized (bids) {
+                synchronized (offers) {
+                    Iterator<Stock> k = allStocks.iterator();
+                    while (k.hasNext()) {
+                        Stock aux = k.next();
+                        if (aux.isBid()) bids.add(aux);
+                        else if (aux.isOffer()) offers.add(aux);
                     }
-                }
-                Iterator<Stock> i = listToSearchIn.iterator();
-                while (i.hasNext() && !foundTransaction.get()) {
-                    Stock complementaryStock = i.next();
-                    if (complementaryStock.matchesPriceWith(stock) && !complementaryStock.matchesClientWith(stock)) {
-                        if (complementaryStock.getActionNumber() == stock.getActionNumber()) {
-                            if(stock.isOffer()) DatabaseConnection.getInstance().insertTransaction(stock, complementaryStock);
-                            else DatabaseConnection.getInstance().insertTransaction(complementaryStock, stock);
-                            DatabaseConnection.getInstance().updateStock(new Stock(complementaryStock.getStockId(), complementaryStock.getClientId(), INACTIVE, complementaryStock.getActionName(), complementaryStock.getActionNumber(), complementaryStock.getPricePerAction()));
-                            DatabaseConnection.getInstance().updateStock(new Stock(stock.getStockId(), stock.getClientId(), INACTIVE, stock.getActionName(), stock.getActionNumber(), stock.getPricePerAction()));
-                        } else if (complementaryStock.getActionNumber() >= stock.getActionNumber()) {
-                            int newActionNumber = complementaryStock.getActionNumber() - stock.getActionNumber();
-                            if(stock.isOffer()) DatabaseConnection.getInstance().insertTransaction(stock, complementaryStock);
-                            else DatabaseConnection.getInstance().insertTransaction(complementaryStock, stock);
-                            DatabaseConnection.getInstance().updateStock(new Stock(complementaryStock.getStockId(), complementaryStock.getClientId(), complementaryStock.getType(), complementaryStock.getActionName(), newActionNumber, complementaryStock.getPricePerAction()));
-                            DatabaseConnection.getInstance().updateStock(new Stock(stock.getStockId(), stock.getClientId(), INACTIVE, stock.getActionName(), stock.getActionNumber(), stock.getPricePerAction()));
-                        } else {
-                            int newActionNumber = stock.getActionNumber() - complementaryStock.getActionNumber();
-                            if(stock.isOffer()) DatabaseConnection.getInstance().insertTransaction(stock, complementaryStock);
-                            else DatabaseConnection.getInstance().insertTransaction(complementaryStock, stock);
-                            DatabaseConnection.getInstance().updateStock(new Stock(complementaryStock.getStockId(), complementaryStock.getClientId(), INACTIVE, complementaryStock.getActionName(), complementaryStock.getActionNumber(), complementaryStock.getPricePerAction()));
-                            DatabaseConnection.getInstance().updateStock(new Stock(stock.getStockId(), stock.getClientId(), stock.getType(), stock.getActionName(), newActionNumber, stock.getPricePerAction()));
+                    Iterator<Stock> i = offers.iterator();
+                    while (i.hasNext() && !foundTransaction.get()) {
+                        Iterator<Stock> j = bids.iterator();
+                        while (j.hasNext() && !foundTransaction.get()) {
+                            Stock offer = i.next();
+                            Stock bid = j.next();
+                            if (offer.matchesPriceWith(bid) && !offer.matchesClientWith(bid)) {
+                                if (offer.getActionNumber() == bid.getActionNumber()) {
+                                    DatabaseConnection.getInstance().insertTransaction(offer, bid);
+                                    DatabaseConnection.getInstance().updateStock(new Stock(offer.getStockId(), offer.getClientId(), INACTIVE, offer.getActionName(), offer.getActionNumber(), offer.getPricePerAction()));
+                                    DatabaseConnection.getInstance().updateStock(new Stock(bid.getStockId(), bid.getClientId(), INACTIVE, bid.getActionName(), bid.getActionNumber(), bid.getPricePerAction()));
+                                } else if (offer.getActionNumber() >= bid.getActionNumber()) {
+                                    int newActionNumber = offer.getActionNumber() - bid.getActionNumber();
+                                    DatabaseConnection.getInstance().insertTransaction(offer, bid);
+                                    DatabaseConnection.getInstance().updateStock(new Stock(offer.getStockId(), offer.getClientId(), offer.getType(), offer.getActionName(), newActionNumber, offer.getPricePerAction()));
+                                    DatabaseConnection.getInstance().updateStock(new Stock(bid.getStockId(), bid.getClientId(), INACTIVE, bid.getActionName(), bid.getActionNumber(), bid.getPricePerAction()));
+                                } else {
+                                    int newActionNumber = bid.getActionNumber() - offer.getActionNumber();
+                                    DatabaseConnection.getInstance().insertTransaction(offer, bid);
+                                    DatabaseConnection.getInstance().updateStock(new Stock(offer.getStockId(), offer.getClientId(), INACTIVE, offer.getActionName(), offer.getActionNumber(), offer.getPricePerAction()));
+                                    DatabaseConnection.getInstance().updateStock(new Stock(bid.getStockId(), bid.getClientId(), bid.getType(), bid.getActionName(), newActionNumber, bid.getPricePerAction()));
+                                }
+                                foundTransaction.set(true);
+                            }
                         }
-                        foundTransaction.set(true);
                     }
                 }
             }
         }
-        
         if (foundTransaction.get()) {
             refreshData();
         }
@@ -139,7 +144,7 @@ public class Server extends Thread implements EventsAndConstants {
             System.exit(-1);
         }
         System.out.println("Server started successfully!");
-        while (isRunning);
+        while (isRunning) ;
         System.out.println("Server closed successfully!");
     }
 }

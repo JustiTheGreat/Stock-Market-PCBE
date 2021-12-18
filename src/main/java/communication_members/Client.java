@@ -87,8 +87,8 @@ public class Client extends JFrame implements Runnable, EventsAndConstants {
 
     private void setListActionListener(JList<Stock> jList){
         jList.addListSelectionListener(e -> {
-            clientStocksLock.lock();
             if (!e.getValueIsAdjusting() && stockJLists.get(1).getSelectedIndex() != -1) {
+                clientStocksLock.lock();
                 JList<Stock> editableJList = stockJLists.get(1);
                 selectedStock = editableJList.getModel().getElementAt(editableJList.getSelectedIndex());
                 clientStocksLock.unlock();
