@@ -32,17 +32,21 @@ public class DatabaseConnection {
     private final ReentrantLock transactionReadLock2 = new ReentrantLock();
     private final ReentrantLock allStocksReadLock = new ReentrantLock();
 
-    private final ThreadLocal<Integer> idClient = ThreadLocal.withInitial(()->null);
+    private final ThreadLocal<Integer> idClient = new ThreadLocal<Integer>() {{
+        set(null);
+    }};
 
     private final ThreadLocal<ArrayList<Stock>> stocks = ThreadLocal.withInitial(ArrayList::new);
 
-    private final ThreadLocal<Stock> stock = ThreadLocal.withInitial(()->null);
+    private final ThreadLocal<Stock> stock = new ThreadLocal<Stock>() {{
+        set(null);
+    }};
 
     private final ThreadLocal<ArrayList<Transaction>> transactions = ThreadLocal.withInitial(ArrayList::new);
 
     private DatabaseConnection() {
         try {
-            DATABASE_CONNECTION = DriverManager.getConnection("jdbc:postgresql://localhost:5432/stockmarket", "postgres", "justi");
+            DATABASE_CONNECTION = DriverManager.getConnection("jdbc:postgresql://localhost:5432/stockmarket", "postgres", "pcbe");
         } catch (SQLException e) {
             e.printStackTrace();
             System.exit(-1);
