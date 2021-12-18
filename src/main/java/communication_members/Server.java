@@ -33,7 +33,7 @@ public class Server extends Thread implements EventsAndConstants {
 
     public void addStock(Stock stock) {
         DatabaseConnection.getInstance().insertStock(stock);
-        new Thread(() -> RabbitMQConnection.getInstance().publish(new Message(REFRESH_STOCKS, null, DatabaseConnection.getInstance().getAllActiveStocks(), null), exchangeNameForServerToClients)).start();
+        new Thread(this::refreshStocks).start();
         new Thread(this::matchOffersAndBids).start();
     }
 
@@ -88,16 +88,22 @@ public class Server extends Thread implements EventsAndConstants {
 
     private void editStock(Stock stock) {
         DatabaseConnection.getInstance().updateStock(stock);
-        refreshData();
+        new Thread(this::refreshStocks).start();
+        new Thread(this::matchOffersAndBids).start();
     }
 
     private void deleteStock(Stock stock) {
         DatabaseConnection.getInstance().deleteStockById(stock);
-        refreshData();
+        new Thread(this::refreshStocks).start();
+        new Thread(this::matchOffersAndBids).start();
+    }
+
+    public void refreshStocks(){
+        RabbitMQConnection.getInstance().publish(new Message(REFRESH_STOCKS, null, DatabaseConnection.getInstance().getAllActiveStocks(), null), exchangeNameForServerToClients);
     }
 
     public void refreshData() {
-        new Thread(() -> RabbitMQConnection.getInstance().publish(new Message(REFRESH_STOCKS, null, DatabaseConnection.getInstance().getAllActiveStocks(), null), exchangeNameForServerToClients)).start();
+        new Thread(this::refreshStocks).start();
         new Thread(() -> RabbitMQConnection.getInstance().publish(new Message(REFRESH_TRANSACTIONS, null, null, DatabaseConnection.getInstance().getAllTransactions()), exchangeNameForServerToClients)).start();
     }
 
