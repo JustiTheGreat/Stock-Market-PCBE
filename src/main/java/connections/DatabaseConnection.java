@@ -60,6 +60,7 @@ public class DatabaseConnection {
         try {
             PreparedStatement pst = DATABASE_CONNECTION.prepareStatement(selectUserByName);
             pst.setString(1, username);
+
             ResultSet rs = pst.executeQuery();
             if (rs.next()) idClient = rs.getInt(1);
         } catch (SQLException e) {

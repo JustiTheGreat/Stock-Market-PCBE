@@ -16,12 +16,7 @@ public class Dispatcher extends Thread {
     @Override
     public void run() {
         server.start();
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
+
         System.out.println("Commands:\n0: Exit system\n1: Start new client");
         Scanner scanner = new Scanner(System.in);
 

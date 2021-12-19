@@ -68,11 +68,13 @@ public class Server extends Thread implements EventsAndConstants {
                                     DatabaseConnection.getInstance().insertTransaction(offer, bid);
                                     DatabaseConnection.getInstance().updateStock(new Stock(offer.getStockId(), offer.getClientId(), offer.getType(), offer.getActionName(), newActionNumber, offer.getPricePerAction()));
                                     DatabaseConnection.getInstance().updateStock(new Stock(bid.getStockId(), bid.getClientId(), INACTIVE, bid.getActionName(), bid.getActionNumber(), bid.getPricePerAction()));
+                                    new Thread(this::matchOffersAndBids).start(); //add today
                                 } else {
                                     int newActionNumber = bid.getActionNumber() - offer.getActionNumber();
                                     DatabaseConnection.getInstance().insertTransaction(offer, bid);
                                     DatabaseConnection.getInstance().updateStock(new Stock(offer.getStockId(), offer.getClientId(), INACTIVE, offer.getActionName(), offer.getActionNumber(), offer.getPricePerAction()));
                                     DatabaseConnection.getInstance().updateStock(new Stock(bid.getStockId(), bid.getClientId(), bid.getType(), bid.getActionName(), newActionNumber, bid.getPricePerAction()));
+                                    new Thread(this::matchOffersAndBids).start(); //add today
                                 }
                                 foundTransaction.set(true);
                             }
@@ -83,6 +85,7 @@ public class Server extends Thread implements EventsAndConstants {
         }
         if (foundTransaction.get()) {
             refreshData();
+            foundTransaction.set(false);
         }
     }
 
@@ -95,7 +98,7 @@ public class Server extends Thread implements EventsAndConstants {
     private void deleteStock(Stock stock) {
         DatabaseConnection.getInstance().deleteStockById(stock);
         new Thread(this::refreshStocks).start();
-        new Thread(this::matchOffersAndBids).start();
+        //new Thread(this::matchOffersAndBids).start();
     }
 
     public void refreshStocks(){
