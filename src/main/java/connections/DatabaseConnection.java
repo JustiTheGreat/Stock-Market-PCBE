@@ -32,7 +32,6 @@ public class DatabaseConnection {
     private final ReentrantLock transactionReadLock2 = new ReentrantLock();
     private final ReentrantLock allStocksReadLock = new ReentrantLock();
 
-    private final ThreadLocal<Integer> idClient = ThreadLocal.withInitial(() -> null);
 
     private final ThreadLocal<ArrayList<Stock>> stocks = ThreadLocal.withInitial(ArrayList::new);
 
@@ -54,6 +53,7 @@ public class DatabaseConnection {
     }
 
     public int getUserIdByName(String username) {
+        int idClient = USER_ID_NOT_FOUND;
         String selectUserByName = "select * from users where name = ?";
         userReadLock.lock();
         userReadLock2.lock();
@@ -61,7 +61,7 @@ public class DatabaseConnection {
             PreparedStatement pst = DATABASE_CONNECTION.prepareStatement(selectUserByName);
             pst.setString(1, username);
             ResultSet rs = pst.executeQuery();
-            if (rs.next()) idClient.set(rs.getInt(1));
+            if (rs.next()) idClient = rs.getInt(1);
         } catch (SQLException e) {
             e.printStackTrace();
             System.exit(-1);
@@ -69,8 +69,8 @@ public class DatabaseConnection {
             userReadLock2.unlock();
             userReadLock.unlock();
         }
-        if (idClient.get() == null) return USER_ID_NOT_FOUND;
-        return idClient.get();
+
+        return idClient;
     }
 
     public void insertUser(String username) {
@@ -139,7 +139,7 @@ public class DatabaseConnection {
             transactionReadLock2.lock();
             ResultSet rs = pst.executeQuery();
             while (rs.next()) {
-                transactions.get().add(new Transaction(getStockById(rs.getInt(2)), getStockById(rs.getInt(3))));
+                transactions.get().add(new Transaction(rs.getString(2),rs.getInt(3), rs.getInt(4), rs.getString(5), rs.getInt(6), rs.getInt(7), rs.getInt(8), rs.getInt(9)));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -171,11 +171,17 @@ public class DatabaseConnection {
 
     public void insertTransaction(Stock offer, Stock bid) {
         try {
-            String insertTransaction = "insert into transaction (offer_id, bid_id) values (?,?)";
+            String insertTransaction = "insert into transaction (offer_action_name, offer_action_number, offer_price_action, bid_action_name, bid_action_number, bid_price_action, offer_client_id, bid_client_id) values (?,?,?,?,?,?,?,?)";
             transactionWriteLock.lock();
             PreparedStatement pst = DATABASE_CONNECTION.prepareStatement(insertTransaction);
-            pst.setInt(1, offer.getStockId());
-            pst.setInt(2, bid.getStockId());
+            pst.setString(1,offer.getActionName());
+            pst.setInt(2,offer.getActionNumber());
+            pst.setInt(3,offer.getPricePerAction());
+            pst.setString(4,bid.getActionName());
+            pst.setInt(5,bid.getActionNumber());
+            pst.setInt(6,bid.getPricePerAction());
+            pst.setInt(7,offer.getClientId());
+            pst.setInt(8,bid.getClientId());
             pst.executeUpdate();
             transactionWriteLock.unlock();
         } catch (SQLException e) {
